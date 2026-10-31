@@ -1,10 +1,15 @@
-<<<<<<< HEAD
-=======
 
 # AI_Job_Assistant
 AI-powered job assistant that helps users find relevant job opportunities, analyze resumes, and improve their job search using intelligent recommendations.
 
->>>>>>> ab86ad7 (Frontend data changes)
+
+## 🎥 Project Demo
+
+Watch the complete working demo of the AI Job Assistant.
+
+[▶ Watch Project Demo](https://drive.google.com/file/d/1BGyuk4IUbAaaDp3t_Lu0yj-7tDwsYwtx/view?usp=drive_link)
+
+
 # AI Job Chat Assistant
 
 [![Python 3.13](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/)
