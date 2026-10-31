@@ -1,9 +1,9 @@
 import React from 'react';
-import { Bot, CheckCircle2, History, MessageSquarePlus, Sparkles } from 'lucide-react';
+import { Bot, History, MessageSquarePlus, Sparkles } from 'lucide-react';
 import type { HealthStatus } from '../types';
 
 interface HeaderProps {
-  health: HealthStatus | null;
+  health?: HealthStatus | null;
   activeTab: 'chat' | 'applications';
   setActiveTab: (tab: 'chat' | 'applications') => void;
   applicationsCount: number;
@@ -11,7 +11,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  health,
   activeTab,
   setActiveTab,
   applicationsCount,
@@ -52,13 +51,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="header-right">
-        {health && (
-          <div className="health-pill" title="Backend API status">
-            <CheckCircle2 size={14} className="online-icon" />
-            <span>Online</span>
-            {health.mock_mode && <span className="mock-badge">Mock LLM Mode</span>}
-          </div>
-        )}
         <button className="new-chat-btn" onClick={onNewChat} title="Start new conversation">
           <MessageSquarePlus size={16} />
           <span>New Chat</span>
