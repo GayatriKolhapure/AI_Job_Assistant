@@ -7,16 +7,23 @@ from backend.app.core.config import get_settings
 
 
 def get_db_path() -> str:
-    """Extract SQLite database file path from DATABASE_URL configuration."""
+    """Extract SQLite database file path from DATABASE_PATH or DATABASE_URL configuration."""
     settings = get_settings()
-    db_url = settings.database_url
-    if db_url.startswith("sqlite:///"):
-        path = db_url.replace("sqlite:///", "")
+    if settings.database_path:
+        path = settings.database_path
     else:
-        path = db_url
+        db_url = settings.database_url
+        if db_url.startswith("sqlite:////"):  # Absolute POSIX path e.g. sqlite:////var/data/applications.db
+            path = "/" + db_url[len("sqlite:////"):]
+        elif db_url.startswith("sqlite:///"):
+            path = db_url[len("sqlite:///"):]
+        elif db_url.startswith("sqlite://"):
+            path = db_url[len("sqlite://"):]
+        else:
+            path = db_url
 
     # Ensure parent directory exists
-    dir_name = os.path.dirname(path)
+    dir_name = os.path.dirname(os.path.abspath(path))
     if dir_name and not os.path.exists(dir_name):
         os.makedirs(dir_name, exist_ok=True)
     return path
@@ -64,4 +71,3 @@ def get_db_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
     conn = sqlite3.connect(target_path, timeout=10.0)
     conn.row_factory = sqlite3.Row
     return conn
-

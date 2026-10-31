@@ -35,14 +35,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
-    allow_headers=["*"],
-)
+# CORS configuration supporting exact origins and Vercel wildcard regex
+cors_kwargs = {
+    "allow_methods": ["GET", "POST", "PATCH", "OPTIONS"],
+    "allow_headers": ["*"],
+}
+
+if "*" in settings.cors_origins:
+    cors_kwargs["allow_origins"] = ["*"]
+    cors_kwargs["allow_credentials"] = False
+else:
+    cors_kwargs["allow_origins"] = settings.cors_origins
+    cors_kwargs["allow_credentials"] = True
+    if settings.cors_origin_regex:
+        cors_kwargs["allow_origin_regex"] = settings.cors_origin_regex
+
+app.add_middleware(CORSMiddleware, **cors_kwargs)
 
 # Exception Handler
 @app.exception_handler(Exception)

@@ -1,0 +1,48 @@
+# ==============================================================================
+# Render Blueprint Configuration (render.yaml)
+# AI Job Assistant Backend - FastAPI Service with SQLite
+# ==============================================================================
+services:
+  - type: web
+    name: ai-job-assistant-backend
+    runtime: python
+    region: oregon
+    plan: free # Change to starter if attaching persistent disk
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: ENVIRONMENT
+        value: production
+      - key: APP_NAME
+        value: "Hidani AI Job Assistant"
+      - key: DATABASE_URL
+        value: sqlite:///./data/applications.db
+      - key: JOBS_DATA_PATH
+        value: ./data/jobs.json
+      - key: UPLOAD_DIR
+        value: ./data/uploads
+      - key: ALLOWED_ORIGINS
+        sync: false # Set in Render Dashboard to your Vercel URL, e.g. https://your-app.vercel.app
+      - key: CORS_ORIGIN_REGEX
+        value: "^https://.*\\.vercel\\.app$"
+      - key: OPENAI_API_KEY
+        value: mock # Set to your real OpenAI API key or keep 'mock' for offline mode
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: LLM_TIMEOUT_SECONDS
+        value: "30"
+      - key: LLM_TEMPERATURE
+        value: "0.2"
+
+    # PERSISTENT STORAGE NOTICE:
+    # Render Free tier instances run on an ephemeral disk. To retain SQLite
+    # applications across service restarts, upgrade to Starter and mount a disk:
+    # disk:
+    #   name: sqlite-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    # Then set DATABASE_PATH: /var/data/applications.db
+

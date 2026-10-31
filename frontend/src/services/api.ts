@@ -6,7 +6,13 @@ import type {
   ResumeProfile,
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const rawApiUrl = import.meta.env.VITE_API_URL;
+// Configurable API base URL: stripped of trailing slashes.
+// In development, defaults to local backend 'http://127.0.0.1:8000'.
+// In production, uses VITE_API_URL or relative path (never hardcoded localhost).
+const API_BASE_URL = rawApiUrl
+  ? rawApiUrl.replace(/\/+$/, '')
+  : (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
 
 export async function checkHealth(): Promise<HealthStatus> {
   const res = await fetch(`${API_BASE_URL}/health`);

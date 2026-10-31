@@ -2,7 +2,7 @@
 
 from functools import lru_cache
 import os
-from typing import List
+from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -34,11 +34,19 @@ class Settings(BaseSettings):
         default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000",
         description="Allowed CORS origins comma-separated"
     )
+    cors_origin_regex: Optional[str] = Field(
+        default=r"^https:\/\/.*\.vercel\.app$",
+        description="Allowed CORS origin regex pattern for Vercel deployments"
+    )
 
-    # Storage paths
+    # Storage paths (SQLite & Filesystem)
     database_url: str = Field(
         default="sqlite:///./data/applications.db",
-        description="SQLite database path"
+        description="SQLite database path or connection URL"
+    )
+    database_path: Optional[str] = Field(
+        default=None,
+        description="Direct filesystem path to SQLite database (overrides database_url when set)"
     )
     jobs_data_path: str = Field(
         default="./data/jobs.json",
@@ -75,4 +83,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Settings singleton cache."""
     return Settings()
-

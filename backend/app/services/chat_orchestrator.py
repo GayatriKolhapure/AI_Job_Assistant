@@ -4,7 +4,6 @@ from collections import defaultdict
 import logging
 from typing import Any, Dict, List, Optional
 
-from backend.app.agents.orchestrator import AgentState, build_orchestrator_graph
 from backend.app.core.config import get_settings
 from backend.app.schemas.application import ApplicationRecord
 from backend.app.schemas.chat import ChatRequest, ChatResponse
@@ -38,6 +37,7 @@ class ChatOrchestrator:
     """Singleton chat manager executing the LangGraph pipeline."""
 
     def __init__(self):
+        from backend.app.agents.orchestrator import build_orchestrator_graph
         self.graph = build_orchestrator_graph()
         self.sessions: Dict[str, SessionState] = defaultdict(lambda: None)
         self.settings = get_settings()
@@ -56,7 +56,7 @@ class ChatOrchestrator:
             session.update_resume(req.resume_profile.model_dump())
 
         # Construct initial state
-        initial_state: AgentState = {
+        initial_state = {
             "session_id": req.session_id,
             "message": req.message,
             "messages": session.messages,
@@ -140,4 +140,3 @@ def get_chat_orchestrator() -> ChatOrchestrator:
     if _orchestrator is None:
         _orchestrator = ChatOrchestrator()
     return _orchestrator
-
