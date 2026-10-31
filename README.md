@@ -7,7 +7,7 @@ AI-powered job assistant that helps users find relevant job opportunities, analy
 
 Watch the complete working demo of the AI Job Assistant.
 
-[▶ Watch Project Demo](https://drive.google.com/file/d/1BGyuk4IUbAaaDp3t_Lu0yj-7tDwsYwtx/view?usp=drive_link)
+[▶ Watch Project Demo](https://drive.google.com/file/d/1BGyuk4lUbAaaDp3t_Lu0yj-7tDwsYwtx/view?usp=drive_link)
 
 
 # AI Job Chat Assistant
