@@ -55,7 +55,6 @@ Let's get started! Upload your resume or ask me to find suitable jobs.`,
 };
 
 export const App: React.FC = () => {
-  // Session ID persistence
   const [sessionId, setSessionId] = useState<string>(() => {
     const saved = localStorage.getItem('ai_job_session_id');
     if (saved) return saved;
@@ -77,14 +76,12 @@ export const App: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom of chat
   useEffect(() => {
     if (activeTab === 'chat') {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isChatLoading, activeTab]);
 
-  // Initial load: check health and fetch existing applications
   useEffect(() => {
     checkHealth()
       .then(setHealth)
@@ -95,7 +92,6 @@ export const App: React.FC = () => {
       .catch((err) => console.warn('Failed to load applications:', err));
   }, [sessionId]);
 
-  // Persist profile changes
   useEffect(() => {
     if (profile) {
       localStorage.setItem('ai_job_active_profile', JSON.stringify(profile));
@@ -133,7 +129,6 @@ export const App: React.FC = () => {
 
       setMessages((prev) => [...prev, assistantMsg]);
 
-      // If response includes applications or an application was created, refresh
       if (response.application || (response.applications && response.applications.length > 0)) {
         getApplications(sessionId).then(setApplications);
       }

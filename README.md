@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+=======
+
+# AI_Job_Assistant
+AI-powered job assistant that helps users find relevant job opportunities, analyze resumes, and improve their job search using intelligent recommendations.
+
+>>>>>>> ab86ad7 (Frontend data changes)
 # AI Job Chat Assistant
 
 [![Python 3.13](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/)
@@ -257,3 +264,7 @@ A comprehensive technical defense and explanation guide is available in [`docs/i
 - How SQLite enforces duplicate application prevention.
 - Security and candidate privacy best practices.
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> ab86ad7 (Frontend data changes)

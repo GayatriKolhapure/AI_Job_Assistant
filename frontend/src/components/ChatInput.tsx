@@ -34,7 +34,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
-    // Auto-adjust height
     e.target.style.height = 'auto';
     e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
   };

@@ -18,11 +18,9 @@ export const ChatMessageView: React.FC<ChatMessageViewProps> = ({
 }) => {
   const isUser = message.role === 'user';
 
-  // Format markdown-like bold and bullet text cleanly
   const renderFormattedContent = (content: string) => {
     const lines = content.split('\n');
     return lines.map((line, idx) => {
-      // Headers
       if (line.startsWith('### ')) {
         return <h4 key={idx} className="msg-h4">{line.replace('### ', '')}</h4>;
       }
@@ -30,7 +28,6 @@ export const ChatMessageView: React.FC<ChatMessageViewProps> = ({
         return <h3 key={idx} className="msg-h3">{line.replace('## ', '')}</h3>;
       }
 
-      // Bullets
       if (line.trim().startsWith('• ') || line.trim().startsWith('* ') || line.trim().startsWith('- ')) {
         const bulletText = line.trim().replace(/^[-*•]\s+/, '');
         return (
@@ -53,7 +50,6 @@ export const ChatMessageView: React.FC<ChatMessageViewProps> = ({
   };
 
   const renderInlineMarkdown = (text: string) => {
-    // Regex for bold **text** and code `code`
     const parts = text.split(/(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
@@ -99,8 +95,7 @@ export const ChatMessageView: React.FC<ChatMessageViewProps> = ({
         <div className="message-bubble">
           {renderFormattedContent(message.content)}
         </div>
-
-        {/* Embedded Job Recommendations */}
+        
         {message.jobs && message.jobs.length > 0 && (
           <div className="jobs-container-block">
             <div className="jobs-heading-row">
@@ -121,7 +116,6 @@ export const ChatMessageView: React.FC<ChatMessageViewProps> = ({
           </div>
         )}
 
-        {/* Suggested Follow-up Prompt Pills */}
         {message.suggested_prompts && message.suggested_prompts.length > 0 && (
           <div className="prompt-pills-row">
             {message.suggested_prompts.map((prompt, idx) => (
