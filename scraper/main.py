@@ -1,4 +1,3 @@
-"""Main execution pipeline for collecting, normalizing, and validating real job data."""
 
 import argparse
 import json

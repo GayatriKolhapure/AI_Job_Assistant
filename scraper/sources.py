@@ -1,4 +1,3 @@
-"""Job data collection sources from permitted public APIs and open job feeds."""
 
 import logging
 import time
