@@ -57,7 +57,7 @@ class Settings(BaseSettings):
         description="Temporary directory for uploaded resumes"
     )
     max_upload_size_mb: int = Field(
-        default=10,
+        default=5,
         description="Maximum resume upload size in megabytes"
     )
 

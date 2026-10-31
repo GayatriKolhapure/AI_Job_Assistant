@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import zipfile
 from typing import Any, Dict, List, Optional, Tuple
 
 import pymupdf  # PyMuPDF
@@ -58,8 +59,103 @@ DESIGNATION_KEYWORDS = [
 
 
 class ResumeParsingError(Exception):
-    """Raised when resume extraction fails due to format or content issues."""
-    pass
+    """Base exception for resume parsing errors."""
+
+    def __init__(self, message: str, error_code: str = "UNREADABLE_RESUME", status_code: int = 422):
+        super().__init__(message)
+        self.message = message
+        self.error_code = error_code
+        self.status_code = status_code
+
+
+class UnsupportedFormatError(ResumeParsingError):
+    def __init__(self, message: str = "Unsupported file format. Please upload your resume in PDF or DOCX format."):
+        super().__init__(message, error_code="UNSUPPORTED_FORMAT", status_code=415)
+
+
+class EmptyFileError(ResumeParsingError):
+    def __init__(self, message: str = "Your uploaded file is empty. Please upload a valid resume."):
+        super().__init__(message, error_code="EMPTY_FILE", status_code=400)
+
+
+class FileTooLargeError(ResumeParsingError):
+    def __init__(self, message: str = "File exceeds maximum allowed size of 5 MB. Please upload a smaller file."):
+        super().__init__(message, error_code="FILE_TOO_LARGE", status_code=413)
+
+
+class CorruptedFileError(ResumeParsingError):
+    def __init__(self, message: str = "I couldn't read your resume. The file may be corrupted. Please upload another copy."):
+        super().__init__(message, error_code="CORRUPTED_FILE", status_code=422)
+
+
+class UnreadableResumeError(ResumeParsingError):
+    def __init__(self, message: str = "I couldn't extract readable text from your resume. Please upload a clear, text-based PDF or DOCX file."):
+        super().__init__(message, error_code="UNREADABLE_RESUME", status_code=422)
+
+
+def validate_file_content(file_bytes: bytes, filename: str) -> None:
+    """Validate file content, headers, and magic bytes before parsing."""
+    settings = get_settings()
+    fn_lower = filename.lower().strip()
+
+    # 1. Filename extension check
+    if not (fn_lower.endswith(".pdf") or fn_lower.endswith(".docx")):
+        raise UnsupportedFormatError("Unsupported file format. Please upload your resume in PDF or DOCX format.")
+
+    # 2. Check empty file (0 bytes)
+    if len(file_bytes) == 0:
+        raise EmptyFileError("Your uploaded file is empty. Please upload a valid resume.")
+
+    # 3. Check maximum file size (5 MB)
+    max_bytes = settings.max_upload_size_mb * 1024 * 1024
+    if len(file_bytes) > max_bytes:
+        raise FileTooLargeError(f"File exceeds maximum allowed size of {settings.max_upload_size_mb} MB. Please upload a smaller file.")
+
+    # 4. Content signature / magic byte inspection
+    image_prefixes = [
+        b"\x89PNG\r\n\x1a\n",
+        b"\xff\xd8\xff",
+        b"GIF87a",
+        b"GIF89a",
+        b"BM",
+        b"RIFF",
+    ]
+    for prefix in image_prefixes:
+        if file_bytes.startswith(prefix):
+            raise UnsupportedFormatError("Unsupported file format. Please upload your resume in PDF or DOCX format.")
+
+    if fn_lower.endswith(".pdf"):
+        # PDF specification requires %PDF- within the first 1024 bytes
+        if b"%PDF-" not in file_bytes[:1024]:
+            # Detect whether it is plain text or corrupted binary
+            try:
+                file_bytes[:512].decode("utf-8")
+                raise UnsupportedFormatError("Unsupported file format. Please upload your resume in PDF or DOCX format.")
+            except UnicodeDecodeError:
+                raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
+
+    elif fn_lower.endswith(".docx"):
+        # DOCX is an Open Packaging Conventions ZIP package
+        zip_signatures = (b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")
+        if not any(file_bytes.startswith(sig) for sig in zip_signatures):
+            try:
+                file_bytes[:512].decode("utf-8")
+                raise UnsupportedFormatError("Unsupported file format. Please upload your resume in PDF or DOCX format.")
+            except UnicodeDecodeError:
+                raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
+
+        # Verify valid zip file
+        if not zipfile.is_zipfile(io.BytesIO(file_bytes)):
+            raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
+
+        # Verify word document structure
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+                names = zf.namelist()
+                if not any("document.xml" in n or "[Content_Types].xml" in n for n in names):
+                    raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
+        except Exception:
+            raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
 
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
@@ -67,23 +163,46 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     text_parts = []
     try:
         doc = pymupdf.open(stream=file_bytes, filetype="pdf")
+    except Exception as e:
+        logger.warning(f"PyMuPDF failed to open PDF document: {e}")
+        raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
+
+    try:
+        if doc.page_count == 0:
+            raise UnreadableResumeError("I couldn't extract readable text from your resume. Please upload a clear, text-based PDF or DOCX file.")
+
         for page in doc:
             t = page.get_text("text")
             if t:
                 text_parts.append(t)
-        doc.close()
+    except ResumeParsingError:
+        raise
     except Exception as e:
-        logger.error(f"PyMuPDF failed to read PDF: {e}")
-        raise ResumeParsingError(f"Unable to read PDF file: {str(e)}")
+        logger.warning(f"PyMuPDF failed while extracting text from pages: {e}")
+        raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
+    finally:
+        try:
+            doc.close()
+        except Exception:
+            pass
 
     full_text = "\n".join(text_parts).strip()
     if not full_text:
-        raise ResumeParsingError("PDF file contains no extractable text (it may be scanned or empty).")
+        raise UnreadableResumeError("I couldn't extract readable text from your resume. Please upload a clear, text-based PDF or DOCX file.")
+
+    # Detect resumes containing only blank spaces or special characters
+    clean_alphanumeric = re.sub(r"[\W_]+", "", full_text)
+    if len(clean_alphanumeric) < 20:
+        raise UnreadableResumeError("I couldn't extract readable text from your resume. Please upload a clear, text-based PDF or DOCX file.")
+
     return full_text
 
 
 def extract_text_from_docx(file_bytes: bytes) -> str:
     """Extract clean text from DOCX bytes using python-docx."""
+    if not zipfile.is_zipfile(io.BytesIO(file_bytes)):
+        raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
+
     try:
         doc = docx.Document(io.BytesIO(file_bytes))
         paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
@@ -94,11 +213,16 @@ def extract_text_from_docx(file_bytes: bytes) -> str:
                         paragraphs.append(cell.text.strip())
         full_text = "\n".join(paragraphs).strip()
     except Exception as e:
-        logger.error(f"python-docx failed to read DOCX: {e}")
-        raise ResumeParsingError(f"Unable to read DOCX file: {str(e)}")
+        logger.warning(f"python-docx failed to read DOCX: {e}")
+        raise CorruptedFileError("I couldn't read your resume. The file may be corrupted. Please upload another copy.")
 
     if not full_text:
-        raise ResumeParsingError("DOCX file contains no extractable text.")
+        raise UnreadableResumeError("I couldn't extract readable text from your resume. Please upload a clear, text-based PDF or DOCX file.")
+
+    clean_alphanumeric = re.sub(r"[\W_]+", "", full_text)
+    if len(clean_alphanumeric) < 20:
+        raise UnreadableResumeError("I couldn't extract readable text from your resume. Please upload a clear, text-based PDF or DOCX file.")
+
     return full_text
 
 
@@ -122,7 +246,6 @@ class ResumeParserService:
         for p in patterns:
             matches = re.findall(p, text)
             if matches:
-                # Find full string match in context
                 found = re.search(r"(\+?\d[\d\s-]{8,15}\d)", text)
                 if found:
                     cleaned = re.sub(r"[^\d+]", "", found.group(0))
@@ -135,10 +258,8 @@ class ResumeParserService:
         """Heuristic name extraction from top resume lines."""
         lines = [line.strip() for line in text.split("\n") if line.strip()]
         for line in lines[:5]:
-            # Skip if contains email or url or keywords
             if "@" in line or "http" in line or "resume" in line.lower() or "curriculum" in line.lower():
                 continue
-            # Candidate names are typically 2-4 words, capitalized
             words = line.split()
             if 1 <= len(words) <= 4 and all(w.isalpha() for w in words):
                 return line
@@ -148,49 +269,38 @@ class ResumeParserService:
     def extract_designation(text: str) -> str:
         """Identify candidate primary designation or target role."""
         text_lower = text.lower()
-        for kw in DESIGNATION_KEYWORDS:
-            if re.search(rf"\b{re.escape(kw)}\b", text_lower):
-                return kw.title()
-        return "Software Engineer"
-
-    @classmethod
-    def extract_skills(cls, text: str) -> List[str]:
-        """Extract technical skills matching known ontology with word boundaries."""
-        text_lower = text.lower()
-        found_skills = set()
-        for skill in TECH_SKILLS_ONTOLOGY:
-            # Handle special symbols like C++, C#, .NET
-            if "+" in skill or "#" in skill or "." in skill:
-                escaped = re.escape(skill)
-                if re.search(rf"(?:^|\s|[,;/]){escaped}(?:$|\s|[,;/])", text_lower):
-                    found_skills.add(cls._format_skill_name(skill))
-            else:
-                if re.search(rf"\b{re.escape(skill)}\b", text_lower):
-                    found_skills.add(cls._format_skill_name(skill))
-        return sorted(list(found_skills))
+        for desig in DESIGNATION_KEYWORDS:
+            pattern = r"\b" + re.escape(desig) + r"\b"
+            if re.search(pattern, text_lower):
+                return desig.title()
+        return "Software Developer"
 
     @staticmethod
-    def _format_skill_name(skill: str) -> str:
-        """Canonical casing for common skills."""
+    def extract_skills(text: str) -> List[str]:
+        """Recognize and normalize technical skills from ontology."""
+        text_lower = text.lower()
+        found_skills = set()
+
+        for skill in TECH_SKILLS_ONTOLOGY:
+            escaped = re.escape(skill)
+            if re.search(r"(?:^|[^a-zA-Z0-9_#+])" + escaped + r"(?:$|[^a-zA-Z0-9_#+])", text_lower):
+                found_skills.add(ResumeParserService.canonicalize_skill(skill))
+
+        priority = ["Python", "Java", "React", "Spring Boot", "FastAPI", "SQL", "Docker", "Node.js"]
+        sorted_skills = sorted(
+            list(found_skills),
+            key=lambda s: (0 if s in priority else 1, s)
+        )
+        return sorted_skills
+
+    @staticmethod
+    def canonicalize_skill(skill: str) -> str:
+        """Normalize skill display formatting."""
         title_map = {
             "c++": "C++",
             "c#": "C#",
-            ".net": ".NET",
-            "asp.net": "ASP.NET",
-            "sql": "SQL",
-            "aws": "AWS",
-            "gcp": "GCP",
             "ci/cd": "CI/CD",
-            "ai": "AI",
-            "ml": "ML",
-            "nlp": "NLP",
-            "llm": "LLM",
-            "rag": "RAG",
-            "rest api": "REST API",
-            "rest": "REST API",
             "spring boot": "Spring Boot",
-            "node.js": "Node.js",
-            "nodejs": "Node.js",
             "react.js": "React",
             "reactjs": "React",
             "vue.js": "Vue",
@@ -219,9 +329,7 @@ class ResumeParserService:
         """Estimate experience in years from years mentioned or date ranges."""
         text_lower = text.lower()
 
-        # Check for explicit "fresher" or "student" or "entry level"
         if "fresher" in text_lower or "entry level" in text_lower or "intern" in text_lower:
-            # Check if there is explicit experience stated
             exp_match = re.search(r"(\d+(?:\.\d+)?)\+?\s*(?:year|yr)s?\s*(?:of)?\s*experience", text_lower)
             if exp_match:
                 try:
@@ -230,7 +338,6 @@ class ResumeParserService:
                     pass
             return 0.0
 
-        # Pattern: "X years of experience" or "X+ yrs experience"
         exp_match = re.search(r"(\d+(?:\.\d+)?)\+?\s*(?:year|yr)s?\s*(?:of)?\s*experience", text_lower)
         if exp_match:
             try:
@@ -238,7 +345,6 @@ class ResumeParserService:
             except ValueError:
                 pass
 
-        # Pattern: Count year intervals (e.g. 2021 - 2024)
         year_matches = re.findall(r"\b(20[0-2][0-9])\b", text)
         if len(year_matches) >= 2:
             years = [int(y) for y in year_matches]
@@ -260,7 +366,6 @@ class ResumeParserService:
         skills = cls.extract_skills(text)
         exp_years = cls.extract_experience_years(text)
 
-        # Detect education keywords
         education = []
         edu_keywords = ["b.tech", "btech", "b.e", "bachelor", "m.tech", "master", "mca", "bca", "bsc", "b.sc", "computer science"]
         text_lower = text.lower()
@@ -274,13 +379,11 @@ class ResumeParserService:
                 ))
                 break
 
-        # Detect projects from text
         projects = []
         lines = text.split("\n")
         for i, line in enumerate(lines):
             line_s = line.strip()
             if "project" in line_s.lower() and len(line_s) < 50:
-                # Next few lines might be project content
                 desc = " ".join([l.strip() for l in lines[i+1:i+4] if l.strip()])
                 if desc:
                     projects.append(ProjectDetail(
@@ -359,14 +462,17 @@ class ResumeParserService:
     @classmethod
     async def parse_file(cls, file_bytes: bytes, filename: str) -> ResumeParseResponse:
         """Parse uploaded resume document (PDF or DOCX) into validated ResumeProfile."""
+        # Validate content, extension, size, and headers
+        validate_file_content(file_bytes, filename)
+
         fn_lower = filename.lower()
         if fn_lower.endswith(".pdf"):
             raw_text = extract_text_from_pdf(file_bytes)
-        elif fn_lower.endswith(".docx") or fn_lower.endswith(".doc"):
+        elif fn_lower.endswith(".docx"):
             raw_text = extract_text_from_docx(file_bytes)
         else:
-            raise ResumeParsingError(
-                f"Unsupported file type for '{filename}'. Only PDF (.pdf) and Word (.docx) files are supported."
+            raise UnsupportedFormatError(
+                "Unsupported file format. Please upload your resume in PDF or DOCX format."
             )
 
         # Attempt LLM structured parsing first if live key available

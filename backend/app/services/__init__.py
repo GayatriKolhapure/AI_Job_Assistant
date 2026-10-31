@@ -11,6 +11,12 @@ from backend.app.services.job_service import JobService, get_job_service
 from backend.app.services.resume_parser import (
     ResumeParserService,
     ResumeParsingError,
+    UnsupportedFormatError,
+    EmptyFileError,
+    FileTooLargeError,
+    CorruptedFileError,
+    UnreadableResumeError,
+    validate_file_content,
 )
 
 __all__ = [
@@ -22,5 +28,10 @@ __all__ = [
     "get_job_service",
     "ResumeParserService",
     "ResumeParsingError",
+    "UnsupportedFormatError",
+    "EmptyFileError",
+    "FileTooLargeError",
+    "CorruptedFileError",
+    "UnreadableResumeError",
+    "validate_file_content",
 ]
-

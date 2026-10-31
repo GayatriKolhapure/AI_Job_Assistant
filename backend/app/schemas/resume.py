@@ -57,4 +57,11 @@ class ResumeParseResponse(BaseModel):
     parse_method: str = Field(default="deterministic", description="Method used: 'llm' or 'deterministic'")
     text_preview: str = Field(default="", description="Truncated preview of extracted text")
     message: str = Field(default="Resume parsed successfully")
+    error_code: Optional[str] = None
 
+
+class ResumeErrorResponse(BaseModel):
+    success: bool = False
+    message: str
+    error_code: str
+    detail: Optional[str] = None
