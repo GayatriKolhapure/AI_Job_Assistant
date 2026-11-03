@@ -20,14 +20,14 @@ Watch the complete working demo of the AI Job Assistant.
 [![SQLite](https://img.shields.io/badge/SQLite-3-003B57.svg)](https://www.sqlite.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An enterprise-grade, conversational AI Job Assistant built for the **Hidani Tech – SDE Intern (AI Agents & Automation)** assessment. It features resume parsing (PDF/DOCX), an indexed dataset of **1,790 verified real job listings**, transparent 4-factor match scoring, a **LangGraph multi-agent orchestrator**, and SQLite job application tracking with duplicate prevention.
+An enterprise-grade, conversational AI Job Assistant built for the **Hidani Tech – SDE Intern (AI Agents & Automation)** assessment. It features resume parsing (PDF/DOCX), an indexed dataset of **1,500+ verified real job listings**, transparent 4-factor match scoring, a **LangGraph multi-agent orchestrator**, and SQLite job application tracking with duplicate prevention.
 
 ---
 
 ## 🚀 Key Features
 
 - 📄 **High-Accuracy Resume Parsing**: Extracts structured profile data (name, email, phone, designation, skills, experience, education, projects) from PDF (via **PyMuPDF**) and Word documents (via **python-docx**).
-- 🌐 **1,790 Real Job Listings**: Harvested from permitted public job feeds (Arbeitnow, Jobicy, Remotive) using an ethical, rate-limited scraping pipeline (`scraper/`) with a built-in dataset validator.
+- 🌐 **1,500+ Real Job Listings**: Harvested from permitted public job feeds (Arbeitnow, Jobicy, Remotive) using an ethical, rate-limited scraping pipeline (`scraper/`) with a built-in dataset validator.
 - 🎯 **Transparent 4-Factor Matching**: Calculates auditable match scores:
   - **Skills Overlap (50%)**
   - **Designation Relevance (25%)**
